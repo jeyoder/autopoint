@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/navigation_connection"
+        android:icon="@drawable/ic_settings_remote_black_24dp"
+        android:title="Connection" />
+
+    <item
+        android:id="@+id/navigation_targeting"
+        android:icon="@drawable/ic_track_changes_black_24dp"
+        android:title="Targeting" />
+
+    <item
+        android:id="@+id/navigation_control"
+        android:icon="@drawable/ic_videogame_asset_black_24dp"
+        android:title="Control" />
+
+    <item
+        android:id="@+id/navigation_settings"
+        android:icon="@drawable/ic_settings_black_24dp"
+        android:title="Settings" />
+
+</menu>
