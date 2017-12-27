@@ -1,11 +1,13 @@
 package com.jyoder.autopoint;
 
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.constraint.ConstraintLayout;
 import android.support.design.widget.BottomNavigationView;
 import android.support.v7.app.AppCompatActivity;
 import android.text.Layout;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -54,13 +56,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     protected void tryBluetoothConnect() {
-        boolean success = bluetooth.connect();
-
-        if(success) {
-            Toast.makeText(this, "You are connected now k", Toast.LENGTH_LONG).show();
-        } else {
-            Toast.makeText(this, "FAILURE :(", Toast.LENGTH_LONG).show();
-        }
+        bluetooth.startConnecting();
     }
 
     @Override
@@ -69,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
         final MainActivity activity = this;
 
         bluetooth = new BluetoothManager(this);
+        bluetooth.start();
 
         setContentView(R.layout.activity_main);
 
@@ -91,6 +88,30 @@ public class MainActivity extends AppCompatActivity {
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
 
+
+        /* Periodic UI update task (gather data from other threads n stuff) */
+        // We need to use this Handler package
+        // Create the Handler object (on the main thread by default)
+        final Handler handler = new Handler();
+        // Define the code block to be executed
+        Runnable uiPeriodic = new Runnable() {
+            @Override
+            public void run() {
+                TextView v = findViewById(R.id.connection_status);
+                v.setText(bluetooth.getCurrentState().toString());
+                handler.postDelayed(this, 100);
+            }
+        };
+        // Start the initial runnable task by posting through the handler
+        handler.post(uiPeriodic);
+    }
+
+    protected void onStop() {
+        super.onStop();
+
+        if(bluetooth != null) {
+            bluetooth.kill();
+        }
     }
 
 }

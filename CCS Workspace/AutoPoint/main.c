@@ -28,6 +28,6 @@ int main(void) {
 
     /* main loop */
     while(1) {
-
+        bluetooth_handle_packets();
     }
 }

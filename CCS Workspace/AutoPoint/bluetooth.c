@@ -18,6 +18,7 @@
 
 #include "util.h"
 #include "bluetooth.h"
+#include "bluetooth_packet_handler.h"
 
 /* BT module pin assignments
  *
@@ -36,13 +37,13 @@
 
 /* TX buffer, insert chars at head, retrieve at tail. */
 char tx_buff[TX_BUFF_SIZE];
-uint32_t tx_head = 0;
-uint32_t tx_tail = 0;
+volatile uint32_t tx_head = 0;
+volatile uint32_t tx_tail = 0;
 
 /* RX buffer, insert chars at head, retrieve at tail. */
 char rx_buff[RX_BUFF_SIZE];
-uint32_t rx_head = 0;
-uint32_t rx_tail = 0;
+volatile uint32_t rx_head = 0;
+volatile uint32_t rx_tail = 0;
 
 /* Packets guaranteed(tm) to be 255b or smaller */
 char packet_buff[256];
@@ -58,26 +59,25 @@ static bool rx_pop(char* data) {
     return true;
 }
 
-/* Called periodically from the main loop. Pops any packets from the rx buffer and
+/* Called periodically from the main loop. Pops all packets from the rx buffer and
  * passes them on to the packet handler.
+ *
+ * Partially received packets will stay in packet_buff until the rest is received.
  */
-
-/* TODO: Fix  this to separate \n from out of data (could be more packet coming) */
 void bluetooth_handle_packets() {
-
-    packet_ptr = 0;
-
+    /* Possible conditions:
+     * Packet end
+     * Out of data
+     */
     while(true) {
         char data;
         bool ok = rx_pop(&data);
         if (!ok) break;
         packet_buff[packet_ptr++] = data;
-        if (data == '\n') break;
-        if (packet_ptr > 255) break;
-    }
-
-    if (packet_ptr > 0) {
-        handle_new_packet(packet_buff, packet_ptr);
+        if (data == '\n' || packet_ptr >= 255) {
+            handle_new_packet(packet_buff, packet_ptr);
+            packet_ptr = 0;
+        }
     }
 }
 
@@ -89,7 +89,7 @@ static void bluetooth_uart_isr(void) {
         UARTIntClear(UART1_BASE, UART_INT_TX);
 
         /* fill with 16 chars or until FIFO full, whichever comes first */
-        for (int i = 0; i < 16; i++) {
+        for (uint32_t i = 0; i < 16; i++) {
 
             if (tx_tail == tx_head) {
                 /* no more data to send */
@@ -116,11 +116,16 @@ static void bluetooth_uart_isr(void) {
             int32_t data = UARTCharGetNonBlocking(UART1_BASE);
 
             if (data == -1) {
-                /* FIFO is empty, stop. */
+                /* input RX FIFO is empty, stop. */
                 break;
             } else {
-                rx_buff[rx_head] = data;
-                rx_head = (rx_head + 1) & RX_BUFF_SIZE;
+                uint32_t next_rx_head = (rx_head + 1) % RX_BUFF_SIZE;
+                if (next_rx_head == rx_tail) {
+                    /* silently drop packets if the RX buff is full */
+                } else {
+                    rx_buff[rx_head] = data;
+                    rx_head = next_rx_head;
+                }
             }
         }
     }

@@ -10,6 +10,19 @@
  *
  */
 
-void handle_new_packet() {
+uint32_t pkt_errors = 0;
 
+void handle_new_packet(char* pkt, uint32_t len) {
+
+    /* Do some basic sanity checks on the packet... */
+    if(pkt[0] != '$') goto err;
+
+    if(pkt[1] == '1') {
+        /* UTC Set */
+        return;
+    }
+
+    return;
+    err:
+        pkt_errors++;
 }
