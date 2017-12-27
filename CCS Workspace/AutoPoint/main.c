@@ -22,7 +22,12 @@ int main(void) {
     util_init();
     laser_init();
     bluetooth_init();
+    propagator_init();
 
+    propagator_test();
 
-    while(1);
+    /* main loop */
+    while(1) {
+
+    }
 }

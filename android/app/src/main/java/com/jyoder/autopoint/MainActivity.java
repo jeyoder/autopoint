@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -52,9 +53,23 @@ public class MainActivity extends AppCompatActivity {
         contentLayout.addView(view);
     }
 
+    protected void tryBluetoothConnect() {
+        boolean success = bluetooth.connect();
+
+        if(success) {
+            Toast.makeText(this, "You are connected now k", Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(this, "FAILURE :(", Toast.LENGTH_LONG).show();
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        final MainActivity activity = this;
+
+        bluetooth = new BluetoothManager(this);
+
         setContentView(R.layout.activity_main);
 
         contentLayout = findViewById(R.id.contents);
@@ -66,6 +81,12 @@ public class MainActivity extends AppCompatActivity {
         switchContents(connectionView);
 
         connectButton = findViewById(R.id.connect_button);
+        connectButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                activity.tryBluetoothConnect();
+            }
+        });
 
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);

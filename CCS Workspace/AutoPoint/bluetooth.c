@@ -31,6 +31,63 @@
  * CONNECTED:       PE4
  */
 
+#define TX_BUFF_SIZE 1024
+#define RX_BUFF_SIZE 1024
+
+/* TX buffer, insert chars at head, retrieve at tail. */
+char tx_buff[TX_BUFF_SIZE];
+uint32_t tx_head = 0;
+uint32_t tx_tail = 0;
+
+/* RX buffer, insert chars at head, retrieve at tail. */
+char rx_buff[RX_BUFF_SIZE];
+uint32_t rx_head = 0;
+uint32_t rx_tail = 0;
+
+static void bluetooth_uart_isr(void) {
+    uint32_t cause = UARTIntStatus(UART1_BASE, true);
+
+    if (cause & UART_INT_TX) {
+        /* TX complete interrupt. Send more data. */
+        UARTIntClear(UART1_BASE, UART_INT_TX);
+
+        /* fill with 16 chars or until FIFO full, whichever comes first */
+        for (int i = 0; i < 16; i++) {
+
+            if (tx_tail == tx_head) {
+                /* no more data to send */
+                break;
+            }
+
+            char data = tx_buff[tx_tail];
+            bool ok = UARTCharPutNonBlocking(UART1_BASE, data);
+
+            if (ok) {
+                tx_tail = (tx_tail + 1) % TX_BUFF_SIZE;
+            } else {
+                break;
+            }
+        }
+    }
+
+    if (cause & (UART_INT_RX | UART_INT_RT)) {
+        /* RX interrupt, we got data. */
+        UARTIntClear(UART1_BASE, UART_INT_RX | UART_INT_RT);
+
+        while(true) {
+            /* Pull data out of the hardware FIFO until there isn't any more */
+            int32_t data = UARTCharGetNonBlocking(UART1_BASE);
+
+            if (data == -1) {
+                /* FIFO is empty, stop. */
+                break;
+            } else {
+                rx_buff[rx_head] = data;
+                rx_head = (rx_head + 1) & RX_BUFF_SIZE;
+            }
+        }
+    }
+}
 
 /* Send a LOW pulse to the RN42 ~RESET pin */
 static void bluetooth_reset() {
@@ -166,10 +223,19 @@ void bluetooth_init(void) {
     bluetooth_send_sync("SN,laser\r\n");
     bluetooth_get_ack();
 
+    /* set UUID for android shit */
+    util_delay_us(100 * 1000);
+    bluetooth_uart_clear();
+    bluetooth_send_sync("SE,0000110100001000800000805F9B34FB\r\n");
+    bluetooth_get_ack();
+
     /* reboot device so changes take effect... */
     bluetooth_reset();
 
-    /* wait for it to boot */
-    util_delay_us(1 * 1000 * 1000);
+    /* Enable interrupts: RX fifo, RX timeout, TX complete */
+    UARTFIFOLevelSet(UART1_BASE, UART_FIFO_TX1_8, UART_FIFO_RX6_8);
+    UARTTxIntModeSet(UART1_BASE, UART_TXINT_MODE_EOT);
+    UARTIntRegister(UART1_BASE, bluetooth_uart_isr);
+    UARTIntEnable(UART1_BASE, UART_INT_RX | UART_INT_RT | UART_INT_TX);
     return;
 }
