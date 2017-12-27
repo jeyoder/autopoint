@@ -9,5 +9,6 @@
 #define BLUETOOTH_H_
 
 void bluetooth_init(void);
+void bluetooth_handle_packets(void);
 
 #endif /* BLUETOOTH_H_ */

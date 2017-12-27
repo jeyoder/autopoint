@@ -44,6 +44,43 @@ char rx_buff[RX_BUFF_SIZE];
 uint32_t rx_head = 0;
 uint32_t rx_tail = 0;
 
+/* Packets guaranteed(tm) to be 255b or smaller */
+char packet_buff[256];
+uint32_t packet_ptr = 0;
+
+/* Try to pop a char from the RX buffer.
+ * Returns true if successful, false if empty
+ */
+static bool rx_pop(char* data) {
+    if(rx_head == rx_tail) return false;
+    *data = rx_buff[rx_tail];
+    rx_tail = (rx_tail + 1) % RX_BUFF_SIZE;
+    return true;
+}
+
+/* Called periodically from the main loop. Pops any packets from the rx buffer and
+ * passes them on to the packet handler.
+ */
+
+/* TODO: Fix  this to separate \n from out of data (could be more packet coming) */
+void bluetooth_handle_packets() {
+
+    packet_ptr = 0;
+
+    while(true) {
+        char data;
+        bool ok = rx_pop(&data);
+        if (!ok) break;
+        packet_buff[packet_ptr++] = data;
+        if (data == '\n') break;
+        if (packet_ptr > 255) break;
+    }
+
+    if (packet_ptr > 0) {
+        handle_new_packet(packet_buff, packet_ptr);
+    }
+}
+
 static void bluetooth_uart_isr(void) {
     uint32_t cause = UARTIntStatus(UART1_BASE, true);
 
